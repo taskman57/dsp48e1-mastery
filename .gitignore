@@ -42,3 +42,9 @@ Thumbs.db
 .idea/
 *.swp
 *~
+# ==========================================
+# Generated Vivado Projects & Local Scripts
+# ==========================================
+**/project/
+**/scripts/*.log
+**/scripts/*.jou

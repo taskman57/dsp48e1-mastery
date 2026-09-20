@@ -21,7 +21,7 @@ architecture Behavioral of fir_impl is
 
     type sfr_fir_t is array(fir_tap_g-1 downto 0) of std_logic_vector(data_width_g-1 downto 0);
 
-    signal sfr_reg_s    : sfr_fir_t := (others => (others => '0'));
+    signal sfr_reg_s        : sfr_fir_t := (others => (others => '0'));
     attribute shreg_extract of sfr_reg_s    : signal is "yes";
     attribute srl_style     of sfr_reg_s    : signal is "srl";  -- no register before or after
 

@@ -13,6 +13,9 @@ dsp48e1-mastery/
 ├── 01_folded_fir/                 # 50-tap folded symmetric FIR filter
 │   ├── hdl/                       # VHDL RTL source files & DSP primitive wrappers
 │   ├── sim/                       # Testbenches & Octave verification scripts
-│   └── README.md                  # Comprehensive architectural reference
+│   ├── scripts/                   # Automated build & setup scripts
+│   │   ├── fir_script.tcl         # Vivado Project Mode generation script
+│   │   └── runme.bat              # One-click Windows batch project launcher
+│   └── README.md                  # Module architectural reference
 ├── 02_divider/                    # High-speed shift-subtract division engine (Planned)
 └── 03_pattern_det/                # Pattern matching and auto-correlation engine (Planned)
