@@ -22,19 +22,34 @@ set_property simulator_language VHDL [current_project]
 
 # 3. Import Design Sources (HDL)
 if {[file exists "$module_dir/hdl"]} {
+    # Add all VHDL files from the hdl directory to sources_1
     add_files -fileset sources_1 "$module_dir/hdl"
+    
     set hdl_files [get_files -of_objects [get_filesets sources_1] -filter {FILE_TYPE == VHDL}]
     if {[llength $hdl_files] > 0} {
         set_property file_type {VHDL} $hdl_files
     }
+
+    # Ensure dsp_package.vhd is explicitly marked active for synthesis and simulation
+    set dsp_pkg "$module_dir/hdl/dsp_package.vhd"
+    if {[file exists $dsp_pkg]} {
+        set_property used_in_synthesis true  [get_files $dsp_pkg]
+        set_property used_in_simulation true [get_files $dsp_pkg]
+    }
 }
 
-# 4. Import Simulation Sources
+# 4. Import Simulation Sources and Waveform Configurations
 if {[file exists "$module_dir/sim"]} {
     add_files -fileset sim_1 "$module_dir/sim"
     set sim_files [get_files -of_objects [get_filesets sim_1] -filter {FILE_TYPE == VHDL}]
     if {[llength $sim_files] > 0} {
         set_property file_type {VHDL} $sim_files
+    }
+
+    # Automatically load waveform configuration if it exists
+    set wcfg_file [glob -nocomplain "$module_dir/sim/*.wcfg"]
+    if {[llength $wcfg_file] > 0} {
+        set_property xsim.simulate.custom_wcfg $wcfg_file [get_filesets sim_1]
     }
 }
 
