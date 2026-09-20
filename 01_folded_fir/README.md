@@ -23,9 +23,24 @@ This module demonstrates the step-by-step evolution of a high-performance FIR fi
 | :--- | :--- | :--- |
 | **Target Primitive** | `DSP48E1` | AMD/Xilinx 7-Series DSP Slice |
 | **Target Device** | `xc7z020clg400-1` | Zynq-7000 (Speed Grade -1) |
-| **HDL Standard** | VHDL-2008 | Direct macro instantiations |
+| **HDL Standard** | VHDL | Direct macro instantiations |
 | **Pipeline Registers** | `AREG = 1`, `BREG = 2`, `PREG = 1` | Maximizes internal systolic clock frequency |
 | **Accumulator Latency** | 3 Cycles | Synchronized with `OPMODE` / `ALUMODE` pipeline delays |
+
+---
+
+## Simulation & Verification
+
+The testbench (`tb_fir_impl`) validates the timing closure and numerical behavior of the folded FIR filter implementation.
+
+### Waveform Configuration
+* The pre-configured waveform layout is saved in `sim/tb_range_detector.wcfg`.
+* Running the project creation script (`scripts/fir_script.tcl`) automatically links this `.wcfg` file to the `sim_1` fileset in Vivado.
+
+### Waveform Output
+![FIR Filter Simulation Waveform](docs/fir_filter_waveform_verification.png)
+
+* **Key Signals Handled:** Clock cycle counter (`cyc_ctr_s`), pipeline delay stages, and DSP48E1 `OPMODE` decoding outputs.
 
 ---
 
@@ -33,7 +48,8 @@ This module demonstrates the step-by-step evolution of a high-performance FIR fi
 
 ```text
 01_folded_fir/
-├── hdl/                  # VHDL-2008 RTL sources & DSP wrappers
-├── sim/                  # Testbenches & Octave test vectors
+├── docs/                 # Documentation assets & verification snapshots
+├── hdl/                  # VHDL RTL sources & DSP wrappers
 ├── scripts/              # Project generation (fir_script.tcl, runme.bat)
+├── sim/                  # Testbenches, .wcfg layouts & test vectors
 └── README.md             # Hardware architectural specification
