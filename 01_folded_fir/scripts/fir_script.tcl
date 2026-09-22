@@ -8,10 +8,11 @@ set script_dir [file dirname [file normalize [info script]]]
 set module_dir [file normalize "$script_dir/.."]
 
 # Project Configuration
-set proj_name     "folded_fir_proj"
-set target_part   "xc7z020clg400-1"
-set top_tb_name   "tb_fir_impl"
-set proj_dir      "$module_dir/project"
+set proj_name        "folded_fir_proj"
+set target_part      "xc7z020clg400-1"
+set top_design_name  "range_detector"
+set top_tb_name      "tb_range_detector"
+set proj_dir         "$module_dir/project"
 
 # 1. Create Vivado Project
 create_project $proj_name $proj_dir -part $target_part -force
@@ -20,42 +21,42 @@ create_project $proj_name $proj_dir -part $target_part -force
 set_property target_language VHDL [current_project]
 set_property simulator_language VHDL [current_project]
 
-# 3. Import Design Sources (HDL)
-if {[file exists "$module_dir/hdl"]} {
-    # Add all VHDL files from the hdl directory to sources_1
-    add_files -fileset sources_1 "$module_dir/hdl"
-    
-    set hdl_files [get_files -of_objects [get_filesets sources_1] -filter {FILE_TYPE == VHDL}]
-    if {[llength $hdl_files] > 0} {
-        set_property file_type {VHDL} $hdl_files
-    }
-
-    # Ensure dsp_package.vhd is explicitly marked active for synthesis and simulation
-    set dsp_pkg "$module_dir/hdl/dsp_package.vhd"
-    if {[file exists $dsp_pkg]} {
-        set_property used_in_synthesis true  [get_files $dsp_pkg]
-        set_property used_in_simulation true [get_files $dsp_pkg]
+# 3. Import IP Cores (.xci)
+if {[file exists "$module_dir/ipcores"]} {
+    set ip_files [glob -nocomplain -directory "$module_dir/ipcores" -type f "*/*.xci"]
+    if {[llength $ip_files] > 0} {
+        puts "Adding IP cores: $ip_files"
+        read_ip $ip_files
+        generate_target all [get_files *.xci]
     }
 }
 
-# 4. Import Simulation Sources and Waveform Configurations
+# 4. Import Design Sources (HDL)
+if {[file exists "$module_dir/hdl"]} {
+    add_files -fileset sources_1 "$module_dir/hdl"
+    set hdl_files [get_files -of_objects [get_filesets sources_1] -filter {FILE_TYPE == VHDL}]
+    if {[llength $hdl_files] > 0} {
+        set_property file_type {VHDL 2008} $hdl_files
+    }
+}
+
+# 5. Import Simulation Sources
 if {[file exists "$module_dir/sim"]} {
     add_files -fileset sim_1 "$module_dir/sim"
     set sim_files [get_files -of_objects [get_filesets sim_1] -filter {FILE_TYPE == VHDL}]
     if {[llength $sim_files] > 0} {
-        set_property file_type {VHDL} $sim_files
-    }
-
-    # Automatically load waveform configuration if it exists
-    set wcfg_file [glob -nocomplain "$module_dir/sim/*.wcfg"]
-    if {[llength $wcfg_file] > 0} {
-        set_property xsim.simulate.custom_wcfg $wcfg_file [get_filesets sim_1]
+        set_property file_type {VHDL 2008} $sim_files
     }
 }
 
-# 5. Update Compile Order and Set Testbench Top
+# 6. Update Compile Order and Set Top Modules
 update_compile_order -fileset sources_1
 update_compile_order -fileset sim_1
+
+if {[get_filesets sources_1] ne ""} {
+    set_property top $top_design_name [get_filesets sources_1]
+    update_compile_order -fileset sources_1
+}
 
 if {[get_filesets sim_1] ne ""} {
     set_property top $top_tb_name [get_filesets sim_1]
@@ -65,4 +66,6 @@ if {[get_filesets sim_1] ne ""} {
 puts "=========================================================================="
 puts " Project '$proj_name' created successfully at:"
 puts " $proj_dir"
+puts " Top Level Entity: $top_design_name"
+puts " Simulation Top:   $top_tb_name"
 puts "=========================================================================="

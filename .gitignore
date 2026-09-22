@@ -1,50 +1,28 @@
-# ==========================================
-# Vivado Project Files & Directories
-# ==========================================
+# ==============================================================================
+# IP Core Filtering (Ignore all Vivado IP generated outputs, keep ONLY .xci)
+# ==============================================================================
+**/ipcores/**
+!**/ipcores/**/
+!**/ipcores/**/*.xci
+
+# ==============================================================================
+# Vivado Artifacts & Logs
+# ==============================================================================
+*.jou
 *.log
-*.bit
-
-# ==========================================
-# Simulator Outputs (ModelSim / Questa / Riviera / GHDL)
-# ==========================================
-# ModelSim / QuestaSim
-work/
-transcript
-*.wlf
-*.mti
-modelsim.ini
-
-# Riviera-PRO / Active-HDL
-*.asdb
-*.dataset
-*.vmd
-library.cfg
-
-# GHDL
-*.cf
-*.o
-*.vcd
-*.ghw
-
-# Vivado Simulator (XSIM)
-xsim.dir/
-*.wdb
-xvhdl.log
-xelab.log
-xsim.log
-
-# ==========================================
-# OS & Editor Junk
-# ==========================================
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
-*.swp
-*~
-# ==========================================
-# Generated Vivado Projects & Local Scripts
-# ==========================================
+*.pb
+*.dcp
+*.wcfg
+*.cache
+*.hw
+*.ip_user_files
+*.sim
+*.gen
+*.str
+.Xil/
 **/project/
-**/scripts/*.log
-**/scripts/*.jou
+
+# ==============================================================================
+# Simulation Data Outputs
+# ==============================================================================
+*.dat

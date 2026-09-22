@@ -10,10 +10,10 @@ entity fir_impl is
     Port ( 
         clk_i           : in STD_LOGIC;
         rst_i           : in STD_LOGIC;
+        clk_ena_i       : in STD_LOGIC;
         data_i          : in STD_LOGIC_VECTOR (ADC_BIT_RES_C-1 downto 0);
         coef_i          : in fir_coef_t;
-        sfr_dat_o       : out STD_LOGIC_VECTOR(ADC_BIT_RES_C-1 downto 0);
-        prod_res_o      : out STD_LOGIC_VECTOR(ADC_BIT_RES_C-1 downto 0);
+        fir_res_o       : out STD_LOGIC_VECTOR(15 downto 0);
         fir_vld_o       : out std_logic
     );
 end fir_impl;
@@ -35,6 +35,7 @@ architecture Behavioral of fir_impl is
     signal dsp_ainp_s       : ainp_t    := (others => (others => '0'));
     signal dsp_binp_s       : binp_t    := (others => (others => '0'));
     signal dsp_pcin_s       : pcin_t    := (others => (others => '0'));
+    signal dsp_pout_s       : pout_t    := (others => (others => '0'));
     signal prod_res_s       : pcin_t    := (others => (others => '0'));
     signal dsp_dinp_s       : dinp_t    := (others => (others => '0'));
 
@@ -49,15 +50,16 @@ begin
                 dly_ctr_v           := 0;
                 fir_vld_o           <= '0';
             else
-                -- input data shifting
-                sfr_reg_s       <= sfr_reg_s(FIR_LEN_C-3 downto 0) & signed(data_i);
+                if clk_ena_i = '1' then
+                    -- input data shifting
+                    sfr_reg_s       <= sfr_reg_s(FIR_LEN_C-3 downto 0) & signed(data_i);
 
-                if dly_ctr_v < (FIR_LEN_C/2 + DSP_LATANCY_C) - 1 then
-                    dly_ctr_v   := dly_ctr_v + 1;
-                else
-                    fir_vld_o   <= '1';
+                    if dly_ctr_v < (FIR_LEN_C/2 + DSP_LATANCY_C) - 1 then
+                        dly_ctr_v   := dly_ctr_v + 1;
+                    else
+                        fir_vld_o   <= '1';
+                    end if;
                 end if;
-
             end if;
         end if;
     end process;
@@ -133,7 +135,7 @@ begin
             UNDERFLOW => open,                    -- 1-bit output: Underflow in add/acc output
             -- Data: 4-bit (each) output: Data Ports
             CARRYOUT => open,                     -- 4-bit output: Carry output
-            P => open,                            -- 48-bit output: Primary data output
+            P => dsp_pout_s(dsp_stg),             -- 48-bit output: Primary data output
             -- Cascade: 30-bit (each) input: Cascade Ports
             ACIN => (others => '0'),              -- 30-bit input: A cascade data input
             BCIN => (others => '0'),              -- 18-bit input: B cascade input
@@ -153,19 +155,19 @@ begin
             CARRYIN => '0',                       -- 1-bit input: Carry input signal
             D => dsp_dinp_s(dsp_stg),             -- 25-bit input: D data input
             -- Reset/Clock Enable: 1-bit (each) input: Reset/Clock Enable Inputs
-            CEA1 => '1',                          -- 1-bit input: Clock enable input for 1st stage AREG
+            CEA1 => clk_ena_i,                    -- 1-bit input: Clock enable input for 1st stage AREG
             CEA2 => '0',                          -- 1-bit input: Clock enable input for 2nd stage AREG
-            CEAD => '1',                          -- 1-bit input: Clock enable input for ADREG
-            CEALUMODE => '1',                     -- 1-bit input: Clock enable input for ALUMODE
-            CEB1 => '1',                          -- 1-bit input: Clock enable input for 1st stage BREG
-            CEB2 => '1',                          -- 1-bit input: Clock enable input for 2nd stage BREG
-            CEC => '1',                           -- 1-bit input: Clock enable input for CREG
+            CEAD => clk_ena_i,                    -- 1-bit input: Clock enable input for ADREG
+            CEALUMODE => clk_ena_i,               -- 1-bit input: Clock enable input for ALUMODE
+            CEB1 => clk_ena_i,                    -- 1-bit input: Clock enable input for 1st stage BREG
+            CEB2 => clk_ena_i,                    -- 1-bit input: Clock enable input for 2nd stage BREG
+            CEC => clk_ena_i,                     -- 1-bit input: Clock enable input for CREG
             CECARRYIN => '0',                     -- 1-bit input: Clock enable input for CARRYINREG
-            CECTRL => '0',                        -- 1-bit input: Clock enable input for OPMODEREG and CARRYINSELREG
-            CED => '1',                           -- 1-bit input: Clock enable input for DREG
+            CECTRL => '1',                        -- 1-bit input: Clock enable input for OPMODEREG and CARRYINSELREG
+            CED => clk_ena_i,                     -- 1-bit input: Clock enable input for DREG
             CEINMODE => '1',                      -- 1-bit input: Clock enable input for INMODEREG
-            CEM => '1',                           -- 1-bit input: Clock enable input for MREG
-            CEP => '1',                           -- 1-bit input: Clock enable input for PREG
+            CEM => clk_ena_i,                     -- 1-bit input: Clock enable input for MREG
+            CEP => clk_ena_i,                     -- 1-bit input: Clock enable input for PREG
             RSTA => rst_i,                        -- 1-bit input: Reset input for AREG
             RSTALLCARRYIN => rst_i,               -- 1-bit input: Reset input for CARRYINREG
             RSTALUMODE => rst_i,                  -- 1-bit input: Reset input for ALUMODEREG
@@ -178,8 +180,6 @@ begin
             RSTP => rst_i                         -- 1-bit input: Reset input for PREG
         );
     end generate;
-    prod_res_o      <= prod_res_s(FIR_LEN_C/2-1)(31 downto 16);     -- obtianed from simulation
-
-    sfr_dat_o       <= std_logic_vector(sfr_reg_s(FIR_LEN_C-2));
+    fir_res_o       <= dsp_pout_s(FIR_LEN_C/2-1)(31 downto 16);     -- MSB determined based on simulation results
 
 end Behavioral;

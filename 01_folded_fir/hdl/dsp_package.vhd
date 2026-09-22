@@ -150,11 +150,13 @@ package dsp_pkg is
     constant DSP_AINP_LEN_C     : integer   := 30;
     constant DSP_BINP_LEN_C     : integer   := 18;
     constant DSP_CINP_LEN_C     : integer   := 48;
+    constant DSP_POUT_LEN_C     : integer   := 48;
     constant DSP_DINP_LEN_C     : integer   := 25;
 
     type ainp_t is array(0 to FIR_LEN_C/2-1) of std_logic_vector(DSP_AINP_LEN_C-1 downto 0);
     type binp_t is array(0 to FIR_LEN_C/2-1) of std_logic_vector(DSP_BINP_LEN_C-1 downto 0);
     type pcin_t is array(0 to FIR_LEN_C/2-1) of std_logic_vector(DSP_CINP_LEN_C-1 downto 0);
+    type pout_t is array(0 to FIR_LEN_C/2-1) of std_logic_vector(DSP_POUT_LEN_C-1 downto 0);
     type dinp_t is array(0 to FIR_LEN_C/2-1) of std_logic_vector(DSP_DINP_LEN_C-1 downto 0);
     type dsp_mode_t is array(0 to FIR_LEN_C/2-1) of std_logic_vector(06 downto 0);
 
