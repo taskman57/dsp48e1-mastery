@@ -5,43 +5,42 @@ use ieee.numeric_std.all;
 package dsp_pkg is
 
     constant ADC_BIT_RES_C      : integer   := 16;
-    constant FIR_LEN_C          : integer   := 54;
+    constant FIR_LEN_C          : integer   := 50;
     constant DSP_LATANCY_C      : integer   := 4;   -- 2 FFs before multiplier + 1 (after multiplier) + 1 (after ALU)
+    constant PULSE_SAMPLES_C    : integer   := 2500;
 
     type sfr_fir_t is array(FIR_LEN_C-2 downto 0) of signed(ADC_BIT_RES_C-1 downto 0);
-    type chrp_rom_t     is array(0 to 2) of signed(ADC_BIT_RES_C-1 downto 0);
+    type chrp_rom_t     is array(natural range <>) of signed(ADC_BIT_RES_C-1 downto 0);
 
     type noisy_dat_t    is array(natural range <>) of signed(ADC_BIT_RES_C-1 downto 0);
     type fir_coef_t     is array(0 to FIR_LEN_C/2-1) of signed(ADC_BIT_RES_C-1 downto 0);
 
     constant fir_coef_c     : fir_coef_t    :=(
-        to_signed(-4, 16),
-        to_signed(19, 16),
-        to_signed(25, 16),
-        to_signed(39, 16),
         to_signed(59, 16),
-        to_signed(85, 16),
-        to_signed(118, 16),
-        to_signed(158, 16),
-        to_signed(205, 16),
-        to_signed(261, 16),
-        to_signed(324, 16),
-        to_signed(395, 16),
-        to_signed(473, 16),
-        to_signed(558, 16),
-        to_signed(647, 16),
-        to_signed(741, 16),
-        to_signed(837, 16),
-        to_signed(933, 16),
-        to_signed(1028, 16),
-        to_signed(1119, 16),
-        to_signed(1204, 16),
-        to_signed(1282, 16),
-        to_signed(1350, 16),
-        to_signed(1407, 16),
-        to_signed(1451, 16),
-        to_signed(1481, 16),
-        to_signed(1496, 16)
+        to_signed(55, 16),
+        to_signed(79, 16),
+        to_signed(108, 16),
+        to_signed(143, 16),
+        to_signed(184, 16),
+        to_signed(232, 16),
+        to_signed(285, 16),
+        to_signed(345, 16),
+        to_signed(410, 16),
+        to_signed(480, 16),
+        to_signed(553, 16),
+        to_signed(630, 16),
+        to_signed(709, 16),
+        to_signed(788, 16),
+        to_signed(866, 16),
+        to_signed(942, 16),
+        to_signed(1015, 16),
+        to_signed(1082, 16),
+        to_signed(1143, 16),
+        to_signed(1195, 16),
+        to_signed(1239, 16),
+        to_signed(1273, 16),
+        to_signed(1295, 16),
+        to_signed(1274, 16)
     );
 
     constant noisy_dat_c    : noisy_dat_t   :=(

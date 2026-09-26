@@ -2,8 +2,12 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use work.dsp_pkg.all;
+use work.ref_adc_pkg.all;
+
+
 
 entity tb_range_detector is
+    generic(SIM_LP_FILTER   : boolean := true);
 end tb_range_detector;
 
 architecture sim of tb_range_detector is
@@ -56,24 +60,45 @@ begin
     adc_clk_i <= clk_p;
 
     adc_data_stim: process(adc_clk_i)
-        variable ctr_v      : integer range 0 to 100-1:=0;
         variable stu_dly_v  : integer range 0 to 100-1:=0;
+        variable ctr_v      : integer range 0 to 2500-1:=0;
+        variable p_num_v    : integer range 0 to adc_real_c'length-1:=0;
     begin
         if rising_edge(adc_clk_i) then
             if rst_i = '1' then
                 ctr_v       := 0;
                 stu_dly_v   := 0;
                 adc_vld_i   <= '0';
+                pulse_i     <= '0';
             else
                 if stu_dly_v < 99 then
                     stu_dly_v   := stu_dly_v + 1;
                 else
                     adc_vld_i   <= '1';
-                    adc_amp_i   <= std_logic_vector(noisy_dat_c(ctr_v) - 32768);
-                    if ctr_v < 99 then
-                        ctr_v   := ctr_v + 1;
+                    if ctr_v = 0 then
+                        pulse_i     <= '1';
                     else
-                        ctr_v   := 0;
+                        pulse_i     <= '0';
+                    end if;
+                    if SIM_LP_FILTER then
+                        adc_amp_i   <= std_logic_vector(noisy_dat_c(ctr_v) - 32768);
+                        if ctr_v < 100-1 then
+                            ctr_v   := ctr_v + 1;
+                        else
+                            ctr_v   := 0;
+                        end if;
+                    else
+                        adc_amp_i   <= std_logic_vector(adc_real_c(p_num_v)(ctr_v));
+                        if ctr_v < 2500-1 then
+                            ctr_v   := ctr_v + 1;
+                        else
+                            if p_num_v < adc_real_c'length-1 then
+                                ctr_v       := 0;
+                                p_num_v     := p_num_v + 1;
+                            else
+                                adc_vld_i   <= '0';
+                            end if;
+                        end if;
                     end if;
                 end if;
             end if;

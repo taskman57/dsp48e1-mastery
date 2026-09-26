@@ -10,10 +10,10 @@ This repository demonstrates how silicon-level hardware design—using pre-adder
 
 ```text
 dsp48e1-mastery/
-├── 01_folded_fir/                 # 54-tap / 50-tap folded symmetric FIR filter system
+├── 01_folded_fir/                 # 50-tap folded symmetric FIR filter system
 │   ├── hdl/                       # VHDL RTL source files, DSP wrappers & range detector
 │   ├── ipcores/                   # AMD/Xilinx IP core XCI definitions (clk_dsp, adc_fifo)
-│   ├── sim/                       # Testbenches & verification vectors
+│   ├── sim/                       # Testbenches, golden ref vectors & verification scripts
 │   ├── scripts/                   # Automated build & setup scripts
 │   │   ├── fir_script.tcl         # Vivado Project Mode generation script
 │   │   └── runme.bat              # One-click Windows batch project launcher
@@ -39,7 +39,7 @@ runme.bat
 This batch script:
 1. Sources the Xilinx toolchain environment via `settings64.bat`.
 2. Automatically imports and synthesizes IP core dependencies (`clk_dsp`, `adc_fifo`) inside `ipcores/`.
-3. Compiles VHDL-2008 design and testbench sources.
+3. Compiles VHDL-2008 design, simulation packages, and testbench sources.
 4. Sets the top-level design entity (`range_detector`) and testbench (`tb_range_detector`).
 5. Prompts to open the generated project in the Vivado GUI.
 
@@ -49,7 +49,8 @@ This batch script:
 
 ### 1. Range Detector & Folded FIR Engine (`01_folded_fir`)
 * **Dual Clock Domain Processing:** Converts input ADC sampling rate to a high-speed 250 MHz DSP processing clock via asynchronous CDC FIFO (`adc_fifo`).
-* **90% Resource Reduction Target:** Migrates from a 27-DSP parallel baseline down to 5 DSP slices using 5x time-division folding and pre-adder symmetry.
+* **50-Tap Folding Alignment:** FIR tap count scaled to 50 taps (25 unique symmetric pairs), perfectly matching a 5x time-division folding factor across 5 DSP slices.
+* **Golden Reference Verification:** Uses `rtl_golden_ref_vector.vhd` in simulation to validate hardware outputs against ideal model outputs.
 * **Robust CDC & Reset Synchronization:** Incorporates `xpm_cdc_async_rst` for reset deassertion and `xpm_cdc_single` for output level classification flags.
 * **Pipelined Control:** Custom DSP macro wrappers configured for optimal pipeline depth (`AREG/ADREG = 1`, `BREG = 2`, `PREG = 1`).
 
@@ -66,7 +67,7 @@ This batch script:
 The FIR filter implementation progresses through four documented git commit milestones:
 
 1. **Initial Parallel Baseline & Top Integration:** 54-tap symmetric FIR filter with top-level `range_detector` integration, dual-clock domains (250 MHz DSP clock), and async CDC FIFO buffering.
-2. **Target Architecture Alignment:** Scaled 50-tap symmetric filter structure.
+2. **50-Tap Scaling & Golden Reference (Current):** Scaled to 50 taps to align mathematically with 5x time-division folding; integrated golden reference vector package.
 3. **Time-Division Folding & Timing Closure:** Conversion to a 5x folded 5-DSP array with setup timing closure on Zynq-7000 (-1).
 4. **System Integration:** Dual-channel (I/Q) top-level integration feeding downstream processing blocks.
 

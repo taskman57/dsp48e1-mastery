@@ -25,27 +25,29 @@ set_property simulator_language VHDL [current_project]
 if {[file exists "$module_dir/ipcores"]} {
     set ip_files [glob -nocomplain -directory "$module_dir/ipcores" -type f "*/*.xci"]
     if {[llength $ip_files] > 0} {
-        puts "Adding IP cores: $ip_files"
+        puts "--> Adding IP cores: $ip_files"
         read_ip $ip_files
-        generate_target all [get_files *.xci]
+        generate_target all [get_files $ip_files]
     }
 }
 
 # 4. Import Design Sources (HDL)
 if {[file exists "$module_dir/hdl"]} {
+    puts "--> Adding HDL sources from $module_dir/hdl..."
     add_files -fileset sources_1 "$module_dir/hdl"
     set hdl_files [get_files -of_objects [get_filesets sources_1] -filter {FILE_TYPE == VHDL}]
     if {[llength $hdl_files] > 0} {
-        set_property file_type {VHDL 2008} $hdl_files
+        set_property file_type {VHDL} $hdl_files
     }
 }
 
-# 5. Import Simulation Sources
+# 5. Import Simulation Sources (Includes testbenches and golden vector packages)
 if {[file exists "$module_dir/sim"]} {
+    puts "--> Adding simulation sources and golden reference packages from $module_dir/sim..."
     add_files -fileset sim_1 "$module_dir/sim"
     set sim_files [get_files -of_objects [get_filesets sim_1] -filter {FILE_TYPE == VHDL}]
     if {[llength $sim_files] > 0} {
-        set_property file_type {VHDL 2008} $sim_files
+        set_property file_type {VHDL} $sim_files
     }
 }
 
