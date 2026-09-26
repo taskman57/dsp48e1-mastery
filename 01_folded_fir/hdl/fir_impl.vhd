@@ -8,12 +8,13 @@ use work.dsp_pkg.all;
 
 entity fir_impl is
     Port ( 
-        clk_i           : in STD_LOGIC;
-        rst_i           : in STD_LOGIC;
-        clk_ena_i       : in STD_LOGIC;
-        data_i          : in STD_LOGIC_VECTOR (ADC_BIT_RES_C-1 downto 0);
+        clk_i           : in std_logic;
+        rst_i           : in std_logic;
+        clk_ena_i       : in std_logic;
+        cyc_ctr_i       : in integer range 0 to DSP_FOLD_STAGES_C-1;
+        data_i          : in std_logic_vector(ADC_BIT_RES_C-1 downto 0);
         coef_i          : in fir_coef_t;
-        fir_res_o       : out STD_LOGIC_VECTOR(15 downto 0);
+        fir_res_o       : out std_logic_vector(15 downto 0);
         fir_vld_o       : out std_logic
     );
 end fir_impl;
@@ -23,9 +24,9 @@ architecture Behavioral of fir_impl is
     attribute shreg_extract : string;
     attribute srl_style     : string;
 
-    signal sfr_reg_s        : sfr_fir_t := (others => (others => '0'));
+    signal sfr_reg_s        : sfr_fir_t     := (others => (others => '0'));
     attribute shreg_extract of sfr_reg_s    : signal is "yes";
-    attribute srl_style     of sfr_reg_s    : signal is "srl";  -- no register before or after
+    attribute srl_style     of sfr_reg_s    : signal is "srl_reg";  -- Force SRL implementation with an output FF (srl_reg) for timing closure
 
     ---- DSP singls
     signal dsp_mode_s       : dsp_mode_t    := (others => (others => '0'));
@@ -41,145 +42,100 @@ architecture Behavioral of fir_impl is
 
 begin
 
-    SFR_TAP_CTRL_PROC: process(clk_i)
+    OUT_VLD_PROC: process(clk_i)
         variable dly_ctr_v      : integer := 0;
     begin
         if rising_edge(clk_i) then
             if rst_i = '1' then
-                sfr_reg_s           <= (others => (others => '0'));
                 dly_ctr_v           := 0;
                 fir_vld_o           <= '0';
             else
-                if clk_ena_i = '1' then
-                    -- input data shifting
-                    sfr_reg_s       <= sfr_reg_s(FIR_LEN_C-3 downto 0) & signed(data_i);
+                if dly_ctr_v < (FIR_LEN_C/2 + DSP_LATANCY_C) - 1 then
+                    dly_ctr_v   := dly_ctr_v + 1;
+                else
+                    fir_vld_o   <= '1';
+                end if;
+            end if;
+        end if;
+    end process OUT_VLD_PROC;
 
-                    if dly_ctr_v < (FIR_LEN_C/2 + DSP_LATANCY_C) - 1 then
-                        dly_ctr_v   := dly_ctr_v + 1;
-                    else
-                        fir_vld_o   <= '1';
-                    end if;
+    SFR_TAP_CTRL_PROC: process(clk_i)
+        variable dly_ctr_v      : integer := 0;
+    begin
+        if rising_edge(clk_i) then
+            if clk_ena_i = '1' then
+                -- input data shifting
+                sfr_reg_s       <= sfr_reg_s(FIR_LEN_C-3 downto 0) & signed(data_i);
+            end if;
+        end if;
+    end process SFR_TAP_CTRL_PROC;
+
+    alu_mod_s   <= x"0";                    -- refere to pg.35 of DSP48E1, ALUMODE
+    A_D_mod_s   <= '0' & x"5";              -- refere to pg.31, pg.32 of DSP48E1, INMODE
+
+    DSP_FILT_GEN:
+    for dsp_stg in 0 to DSP_FOLD_STAGES_C-1 generate
+    begin
+        DSP0_IF:
+        if dsp_stg = 0  generate
+            dsp_ainp_s(dsp_stg)     <= std_logic_vector(resize(signed(data_i),DSP_AINP_LEN_C)) when (cyc_ctr_i = 0) else
+                                    std_logic_vector(resize(sfr_reg_s(cyc_ctr_i),DSP_AINP_LEN_C));
+
+            dsp_dinp_s(dsp_stg)     <= std_logic_vector(resize(sfr_reg_s((FIR_LEN_C-2)),DSP_DINP_LEN_C)) when (cyc_ctr_i = 0) else
+                                    std_logic_vector(resize(sfr_reg_s((FIR_LEN_C-1) - cyc_ctr_i),DSP_DINP_LEN_C));
+
+            dsp_mode_s(dsp_stg)     <= "000" & "01" & "01"  when (cyc_ctr_i = 0 + (DSP_LATANCY_C - 1 - TIMING_COMP_C)) else     -- Z:0, X&Y: M, refere to pg.34 of DSP48E1
+                                    "100" & "01" & "01";                                                                        -- Z:P, X&Y: M, refere to pg.34 of DSP48E1
+
+        end generate;
+
+        dsp_binp_s(dsp_stg)     <= std_logic_vector(resize(coef_i((dsp_stg*DSP_FOLD_STAGES_C) + cyc_ctr_i),DSP_BINP_LEN_C));
+
+        DSPn_IF:
+        if dsp_stg > 0 generate
+            -- Added '+ dsp_stg' to shift data history back by 1 sample per cascade stage
+            dsp_ainp_s(dsp_stg)     <= std_logic_vector(resize(sfr_reg_s(((dsp_stg*DSP_FOLD_STAGES_C)-1 + dsp_stg)),DSP_AINP_LEN_C)) when (cyc_ctr_i = 0) else
+                                    std_logic_vector(resize(sfr_reg_s(((dsp_stg*DSP_FOLD_STAGES_C)+cyc_ctr_i + dsp_stg)),DSP_AINP_LEN_C));
+
+            dsp_pcin_s(dsp_stg)     <= prod_res_s(dsp_stg-1);
+
+            dsp_mode_s(dsp_stg)     <= "001" & "01" & "01"  when (cyc_ctr_i = (DSP_LATANCY_C - 1 - TIMING_COMP_C)) else     -- Z:PCIN, X&Y: M
+                                    "100" & "01" & "01";                                                                    -- Z:P, X&Y: M
+                                    
+            -- Added '+ dsp_stg' to shift the symmetric pre-adder data history
+            dsp_dinp_s(dsp_stg)     <= std_logic_vector(resize(sfr_reg_s((FIR_LEN_C-2) - ((dsp_stg*DSP_FOLD_STAGES_C)) + dsp_stg),DSP_DINP_LEN_C)) when (cyc_ctr_i = 0) else
+                                    std_logic_vector(resize(sfr_reg_s((FIR_LEN_C-1) - ((dsp_stg*DSP_FOLD_STAGES_C) + cyc_ctr_i) + dsp_stg),DSP_DINP_LEN_C));
+        end generate;        
+
+        DSP48E1_inst : entity work.DSP_wrapper
+        Port map(
+            clk_i       => clk_i,
+            clk_ena_i   => '1',
+            rst_i       => rst_i,
+            dsp_mod_i   => dsp_mode_s(dsp_stg),
+            alu_mod_i   => alu_mod_s,
+            A_D_mod_i   => A_D_mod_s,
+
+            ainp_i      => dsp_ainp_s(dsp_stg),
+            binp_i      => dsp_binp_s(dsp_stg),
+            pcin_i      => dsp_pcin_s(dsp_stg),
+            dinp_i      => dsp_dinp_s(dsp_stg),
+            pcout_o     => prod_res_s(dsp_stg),
+            pout_o      => dsp_pout_s(dsp_stg)
+        );
+    end generate;
+
+    process(clk_i)
+    begin
+        if rising_edge(clk_i) then
+            if rst_i = '1' then
+                fir_res_o       <= (others => '0');
+            else
+                if cyc_ctr_i = 3 then
+                    fir_res_o       <= dsp_pout_s(DSP_FOLD_STAGES_C-1)(31 downto 16);     -- MSB determined based on simulation results
                 end if;
             end if;
         end if;
     end process;
-
-    alu_mod_s   <= x"0";                    -- refere to pg.35 of DSP48E1, ALUMODE
-    A_D_mod_s   <= '0' & x"5";              -- B2, refere to pg.31, pg.32 of DSP48E1, INMODE
-
-    DSP_FILT_GEN:
-    for dsp_stg in 0 to FIR_LEN_C/2-1 generate
-    begin
-        DSP0_IF:
-        if dsp_stg = 0  generate
-            dsp_ainp_s(dsp_stg)     <= std_logic_vector(resize(signed(data_i),DSP_AINP_LEN_C));
-            dsp_pcin_s(dsp_stg)     <= (others => '0');
-            dsp_mode_s(dsp_stg)     <= "000" & "01" & "01";     -- Z:0, X&Y: M, refere to pg.34 of DSP48E1
-        end generate;
-
-        DSPi_IF:
-        if dsp_stg > 0  generate
-            -- Rule 2: A-port taps advance by 2 (2*dsp_stg - 1)
-            dsp_ainp_s(dsp_stg)     <= std_logic_vector(resize(signed(sfr_reg_s(2*dsp_stg-1)),DSP_AINP_LEN_C));
-            dsp_pcin_s(dsp_stg)     <= prod_res_s(dsp_stg-1);
-            dsp_mode_s(dsp_stg)     <= "001" & "01" & "01";     -- Z:PCIN, X&Y: M, refere to pg.34 of DSP48E1
-        end generate;
-
-        dsp_binp_s(dsp_stg)     <= std_logic_vector(resize(coef_i(dsp_stg),DSP_BINP_LEN_C));
-
-        -- Rule 1: Every stage uses the exact same D-port tap (FIR_LEN_C-2)
-        dsp_dinp_s(dsp_stg)     <= std_logic_vector(resize(sfr_reg_s(FIR_LEN_C-2),DSP_DINP_LEN_C));
-
-        DSP48E1_inst : DSP48E1
-        generic map (
-            -- Feature Control Attributes: Data Path Selection
-            A_INPUT => "DIRECT",                  -- Selects A input source, "DIRECT" (A port) or "CASCADE" (ACIN port)
-            B_INPUT => "DIRECT",                  -- Selects B input source, "DIRECT" (B port) or "CASCADE" (BCIN port)
-            USE_DPORT => TRUE,                   -- Select D port usage (TRUE or FALSE)
-            USE_MULT => "MULTIPLY",               -- Select multiplier usage ("MULTIPLY", "DYNAMIC", or "NONE")
-            USE_SIMD => "ONE48",                  -- SIMD selection ("ONE48", "TWO24", "FOUR12")
-            -- Pattern Detector Attributes: Pattern Detection Configuration
-            AUTORESET_PATDET => "NO_RESET",       -- "NO_RESET", "RESET_MATCH", "RESET_NOT_MATCH" 
-            MASK => X"3fffffffffff",              -- 48-bit mask value for pattern detect (1=ignore)
-            PATTERN => X"000000000000",           -- 48-bit pattern match for pattern detect
-            SEL_MASK => "MASK",                   -- "C", "MASK", "ROUNDING_MODE1", "ROUNDING_MODE2" 
-            SEL_PATTERN => "PATTERN",             -- Select pattern value ("PATTERN" or "C")
-            USE_PATTERN_DETECT => "NO_PATDET",    -- Enable pattern detect ("PATDET" or "NO_PATDET")
-            -- Register Control Attributes: Pipeline Register Configuration
-            ACASCREG => 1,                        -- Number of pipeline stages between A/ACIN and ACOUT (0, 1 or 2)
-            ADREG => 1,                           -- Number of pipeline stages for pre-adder (0 or 1)
-            ALUMODEREG => 0,                      -- Number of pipeline stages for ALUMODE (0 or 1)
-            AREG => 1,                            -- Number of pipeline stages for A (0, 1 or 2)
-            BCASCREG => 1,                        -- Number of pipeline stages between B/BCIN and BCOUT (0, 1 or 2)
-            BREG => 2,                            -- Number of pipeline stages for B (0, 1 or 2)
-            CARRYINREG => 0,                      -- Number of pipeline stages for CARRYIN (0 or 1)
-            CARRYINSELREG => 0,                   -- Number of pipeline stages for CARRYINSEL (0 or 1)
-            CREG => 1,                            -- Number of pipeline stages for C (0 or 1)
-            DREG => 1,                            -- Number of pipeline stages for D (0 or 1)
-            INMODEREG => 0,                       -- Number of pipeline stages for INMODE (0 or 1)
-            MREG => 1,                            -- Number of multiplier pipeline stages (0 or 1)
-            OPMODEREG => 0,                       -- Number of pipeline stages for OPMODE (0 or 1)
-            PREG => 1                             -- Number of pipeline stages for P (0 or 1)
-        )
-        port map (
-            -- Cascade: 30-bit (each) output: Cascade Ports
-            ACOUT => open,                        -- 30-bit output: A port cascade output
-            BCOUT => open,                        -- 18-bit output: B port cascade output
-            CARRYCASCOUT => open,                 -- 1-bit output: Cascade carry output
-            MULTSIGNOUT => open,                  -- 1-bit output: Multiplier sign cascade output
-            PCOUT => prod_res_s(dsp_stg),         -- 48-bit output: Cascade output
-            -- Control: 1-bit (each) output: Control Inputs/Status Bits
-            OVERFLOW => open,                     -- 1-bit output: Overflow in add/acc output
-            PATTERNBDETECT => open,               -- 1-bit output: Pattern bar detect output
-            PATTERNDETECT => open,                -- 1-bit output: Pattern detect output
-            UNDERFLOW => open,                    -- 1-bit output: Underflow in add/acc output
-            -- Data: 4-bit (each) output: Data Ports
-            CARRYOUT => open,                     -- 4-bit output: Carry output
-            P => dsp_pout_s(dsp_stg),             -- 48-bit output: Primary data output
-            -- Cascade: 30-bit (each) input: Cascade Ports
-            ACIN => (others => '0'),              -- 30-bit input: A cascade data input
-            BCIN => (others => '0'),              -- 18-bit input: B cascade input
-            CARRYCASCIN => '0',                   -- 1-bit input: Cascade carry input
-            MULTSIGNIN => '0',                    -- 1-bit input: Multiplier sign input
-            PCIN => dsp_pcin_s(dsp_stg),          -- 48-bit input: P cascade input
-            -- Control: 4-bit (each) input: Control Inputs/Status Bits
-            ALUMODE => alu_mod_s,                 -- 4-bit input: ALU control input
-            CARRYINSEL => "000",                  -- 3-bit input: Carry select input
-            CLK => clk_i,                         -- 1-bit input: Clock input
-            INMODE => A_D_mod_s,                  -- 5-bit input: INMODE control input
-            OPMODE => dsp_mode_s(dsp_stg),        -- 7-bit input: Operation mode input
-            -- Data: 30-bit (each) input: Data Ports
-            A => dsp_ainp_s(dsp_stg),             -- 30-bit input: A data input
-            B => dsp_binp_s(dsp_stg),             -- 18-bit input: B data input
-            C => (others => '0'),                 -- 48-bit input: C data input
-            CARRYIN => '0',                       -- 1-bit input: Carry input signal
-            D => dsp_dinp_s(dsp_stg),             -- 25-bit input: D data input
-            -- Reset/Clock Enable: 1-bit (each) input: Reset/Clock Enable Inputs
-            CEA1 => clk_ena_i,                    -- 1-bit input: Clock enable input for 1st stage AREG
-            CEA2 => '0',                          -- 1-bit input: Clock enable input for 2nd stage AREG
-            CEAD => clk_ena_i,                    -- 1-bit input: Clock enable input for ADREG
-            CEALUMODE => clk_ena_i,               -- 1-bit input: Clock enable input for ALUMODE
-            CEB1 => clk_ena_i,                    -- 1-bit input: Clock enable input for 1st stage BREG
-            CEB2 => clk_ena_i,                    -- 1-bit input: Clock enable input for 2nd stage BREG
-            CEC => clk_ena_i,                     -- 1-bit input: Clock enable input for CREG
-            CECARRYIN => '0',                     -- 1-bit input: Clock enable input for CARRYINREG
-            CECTRL => '1',                        -- 1-bit input: Clock enable input for OPMODEREG and CARRYINSELREG
-            CED => clk_ena_i,                     -- 1-bit input: Clock enable input for DREG
-            CEINMODE => '1',                      -- 1-bit input: Clock enable input for INMODEREG
-            CEM => clk_ena_i,                     -- 1-bit input: Clock enable input for MREG
-            CEP => clk_ena_i,                     -- 1-bit input: Clock enable input for PREG
-            RSTA => rst_i,                        -- 1-bit input: Reset input for AREG
-            RSTALLCARRYIN => rst_i,               -- 1-bit input: Reset input for CARRYINREG
-            RSTALUMODE => rst_i,                  -- 1-bit input: Reset input for ALUMODEREG
-            RSTB => rst_i,                        -- 1-bit input: Reset input for BREG
-            RSTC => rst_i,                        -- 1-bit input: Reset input for CREG
-            RSTCTRL => rst_i,                     -- 1-bit input: Reset input for OPMODEREG and CARRYINSELREG
-            RSTD => rst_i,                        -- 1-bit input: Reset input for DREG and ADREG
-            RSTINMODE => rst_i,                   -- 1-bit input: Reset input for INMODEREG
-            RSTM => rst_i,                        -- 1-bit input: Reset input for MREG
-            RSTP => rst_i                         -- 1-bit input: Reset input for PREG
-        );
-    end generate;
-    fir_res_o       <= dsp_pout_s(FIR_LEN_C/2-1)(31 downto 16);     -- MSB determined based on simulation results
 
 end Behavioral;

@@ -44,7 +44,8 @@ The FIR core is scaled to **50 taps**, providing 25 unique symmetric coefficient
 01_folded_fir/
 ├── hdl/
 │   ├── dsp_package.vhd           # Design constants, types, coefficients, and conv_round()
-│   ├── fir_impl.vhd              # 50-tap parallel DSP48E1 macro cascade engine
+│   ├── dsp_wrapper.vhd           # Parametric DSP48E1 macro wrapper (AREG/BREG/PREG pipeline control)
+│   ├── fir_impl.vhd              # 50-tap parallel DSP48E1 cascade engine using dsp_wrapper
 │   └── range_detector.vhd        # Top-level CDC wrapper, IP instances, and thresholding
 ├── ipcores/
 │   ├── clk_dsp/                  # Clocking wizard IP XCI for 250 MHz DSP clock generation

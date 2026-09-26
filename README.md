@@ -11,7 +11,7 @@ This repository demonstrates how silicon-level hardware design—using pre-adder
 ```text
 dsp48e1-mastery/
 ├── 01_folded_fir/                 # 50-tap folded symmetric FIR filter system
-│   ├── hdl/                       # VHDL RTL source files, DSP wrappers & range detector
+│   ├── hdl/                       # VHDL RTL sources (dsp_wrapper, fir_impl, range_detector)
 │   ├── ipcores/                   # AMD/Xilinx IP core XCI definitions (clk_dsp, adc_fifo)
 │   ├── sim/                       # Testbenches, golden ref vectors & verification scripts
 │   ├── scripts/                   # Automated build & setup scripts
