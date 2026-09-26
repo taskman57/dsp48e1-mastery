@@ -34,6 +34,7 @@ architecture Behavioral of range_detector is
     signal dsp_clk_s        : std_logic;
     signal sys_clk_s        : std_logic;
     signal dsp_rst_s        : std_logic;
+    signal fir_rst_s        : std_logic;
     signal sys_rst_s        : std_logic;
     signal clk_lck_s        : std_logic;
     signal fifo_rst_syn_s   : std_logic;
@@ -48,7 +49,7 @@ architecture Behavioral of range_detector is
     signal mid_lev_s        : std_logic;
     signal hig_lev_s        : std_logic;
 
-    signal ctr_s            : integer :=0;
+    signal cyc_ctr_s        : integer range 0 to DSP_FOLD_STAGES_C - 1:=4;
 
     signal fir_vld_s        : std_logic;
 
@@ -133,30 +134,35 @@ begin
         if rising_edge(dsp_clk_s) then
             if dsp_rst_s = '1' then
                 adc_fif_ren_s       <= '0';
-                ctr_s               <= 0;
+                cyc_ctr_s           <= 4;
+                fir_rst_s           <= '1';
             else
                 adc_fif_ren_s       <= '0';
-                if adc_fif_emp_s = '0' and ctr_s = 0 then
-                    adc_fif_ren_s   <= '1';
-                    ctr_s           <= 4;
+                if adc_fif_emp_s = '0' then
+                    fir_rst_s       <= '0';
+                    if cyc_ctr_s = 4 then
+                        adc_fif_ren_s   <= '1';
+                        cyc_ctr_s       <= 0;
+                    end if;
                 end if;
-                if ctr_s < 5 and ctr_s > 0 then
-                    ctr_s <= ctr_s - 1;
+                if cyc_ctr_s < 4 then
+                    cyc_ctr_s       <= cyc_ctr_s + 1;
                 end if;
             end if;
         end if;
     end process;
     fir_amp_inst: entity work.fir_impl
-        Port map( 
-            clk_i           => dsp_clk_s,
-            rst_i           => dsp_rst_s,
-            clk_ena_i       => adc_fif_ren_s,
-            data_i          => adc_amp_s,
-            coef_i          => fir_coef_c,
-            fir_res_o       => fir_res_s,
-            fir_vld_o       => fir_vld_s
-        );
-        obj_det_o <= fir_vld_s;
+    Port map( 
+        clk_i           => dsp_clk_s,
+        rst_i           => fir_rst_s,
+        clk_ena_i       => adc_fif_ren_s,
+        cyc_ctr_i       => cyc_ctr_s,
+        data_i          => adc_amp_s,
+        coef_i          => fir_coef_c,
+        fir_res_o       => fir_res_s,
+        fir_vld_o       => fir_vld_s
+    );
+    obj_det_o   <= fir_vld_s;
 
 -- synthesis translate_off
     stimulus: process(dsp_clk_s)

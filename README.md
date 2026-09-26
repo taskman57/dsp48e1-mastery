@@ -10,7 +10,8 @@ This repository demonstrates how silicon-level hardware design—using pre-adder
 
 ```text
 dsp48e1-mastery/
-├── 01_folded_fir/                 # 50-tap folded symmetric FIR filter system
+├── 01_folded_fir/                 # 50-tap 5x time-division folded FIR processing engine
+│   ├── constraints/               # Timing and physical placement constraints (.xdc)
 │   ├── hdl/                       # VHDL RTL sources (dsp_wrapper, fir_impl, range_detector)
 │   ├── ipcores/                   # AMD/Xilinx IP core XCI definitions (clk_dsp, adc_fifo)
 │   ├── sim/                       # Testbenches, golden ref vectors & verification scripts
@@ -39,9 +40,10 @@ runme.bat
 This batch script:
 1. Sources the Xilinx toolchain environment via `settings64.bat`.
 2. Automatically imports and synthesizes IP core dependencies (`clk_dsp`, `adc_fifo`) inside `ipcores/`.
-3. Compiles VHDL-2008 design, simulation packages, and testbench sources.
-4. Sets the top-level design entity (`range_detector`) and testbench (`tb_range_detector`).
-5. Prompts to open the generated project in the Vivado GUI.
+3. Compiles VHDL design, simulation packages, and testbench sources.
+4. Imports constraints from `constraints/` into `constrs_1`.
+5. Sets the top-level design entity (`range_detector`) and testbench (`tb_range_detector`).
+6. Prompts to open the generated project in the Vivado GUI.
 
 ---
 
@@ -49,10 +51,10 @@ This batch script:
 
 ### 1. Range Detector & Folded FIR Engine (`01_folded_fir`)
 * **Dual Clock Domain Processing:** Converts input ADC sampling rate to a high-speed 250 MHz DSP processing clock via asynchronous CDC FIFO (`adc_fifo`).
-* **50-Tap Folding Alignment:** FIR tap count scaled to 50 taps (25 unique symmetric pairs), perfectly matching a 5x time-division folding factor across 5 DSP slices.
+* **5x Time-Division Folding:** Reduces a 50-tap symmetric FIR filter down to **5 DSP slices** running at 250 MHz (achieving an 80% DSP reduction over parallel symmetric engines).
+* **Timing Closure:** Achieves clean setup timing closure with zero timing violations on Zynq-7000 (-1) silicon.
 * **Golden Reference Verification:** Uses `rtl_golden_ref_vector.vhd` in simulation to validate hardware outputs against ideal model outputs.
 * **Robust CDC & Reset Synchronization:** Incorporates `xpm_cdc_async_rst` for reset deassertion and `xpm_cdc_single` for output level classification flags.
-* **Pipelined Control:** Custom DSP macro wrappers configured for optimal pipeline depth (`AREG/ADREG = 1`, `BREG = 2`, `PREG = 1`).
 
 ### 2. High-Speed DSP Divider (`02_divider`)
 * Hardware division via consecutive shift-subtract operations implemented directly inside cascaded DSP48E1 slices.
@@ -67,15 +69,15 @@ This batch script:
 The FIR filter implementation progresses through four documented git commit milestones:
 
 1. **Initial Parallel Baseline & Top Integration:** 54-tap symmetric FIR filter with top-level `range_detector` integration, dual-clock domains (250 MHz DSP clock), and async CDC FIFO buffering.
-2. **50-Tap Scaling & Golden Reference (Current):** Scaled to 50 taps to align mathematically with 5x time-division folding; integrated golden reference vector package.
-3. **Time-Division Folding & Timing Closure:** Conversion to a 5x folded 5-DSP array with setup timing closure on Zynq-7000 (-1).
+2. **50-Tap Scaling & Golden Reference:** Scaled to 50 taps to align mathematically with 5x time-division folding; integrated golden reference vector package.
+3. **Time-Division Folding & Timing Closure (Completed):** Implemented 5x folding engine using 5 DSP slices running at 250 MHz with full timing closure and constraint integration.
 4. **System Integration:** Dual-channel (I/Q) top-level integration feeding downstream processing blocks.
 
 ---
 
 ## Environment & Toolchain
 
-* **Language:** VHDL-2008
+* **Language:** VHDL
 * **Synthesis & Simulation:** AMD Xilinx Vivado / ModelSim / Riviera-PRO
 * **Target Device:** Zynq-7000 FPGA Family (`xc7z020clg400-1`)
 * **Verification Environment:** GNU Octave / MathWorks MATLAB

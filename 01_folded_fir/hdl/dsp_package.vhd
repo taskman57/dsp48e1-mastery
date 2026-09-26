@@ -7,6 +7,8 @@ package dsp_pkg is
     constant ADC_BIT_RES_C      : integer   := 16;
     constant FIR_LEN_C          : integer   := 50;
     constant DSP_LATANCY_C      : integer   := 4;   -- 2 FFs before multiplier + 1 (after multiplier) + 1 (after ALU)
+    constant TIMING_COMP_C      : integer   := 1;   -- Compensate for 1-cycle pipeline delay added to break the cyc_ctr_s to OPMODE critical path
+    constant DSP_FOLD_STAGES_C  : integer   := 5;
     constant PULSE_SAMPLES_C    : integer   := 2500;
 
     type sfr_fir_t is array(FIR_LEN_C-2 downto 0) of signed(ADC_BIT_RES_C-1 downto 0);
@@ -152,12 +154,12 @@ package dsp_pkg is
     constant DSP_POUT_LEN_C     : integer   := 48;
     constant DSP_DINP_LEN_C     : integer   := 25;
 
-    type ainp_t is array(0 to FIR_LEN_C/2-1) of std_logic_vector(DSP_AINP_LEN_C-1 downto 0);
-    type binp_t is array(0 to FIR_LEN_C/2-1) of std_logic_vector(DSP_BINP_LEN_C-1 downto 0);
-    type pcin_t is array(0 to FIR_LEN_C/2-1) of std_logic_vector(DSP_CINP_LEN_C-1 downto 0);
-    type pout_t is array(0 to FIR_LEN_C/2-1) of std_logic_vector(DSP_POUT_LEN_C-1 downto 0);
-    type dinp_t is array(0 to FIR_LEN_C/2-1) of std_logic_vector(DSP_DINP_LEN_C-1 downto 0);
-    type dsp_mode_t is array(0 to FIR_LEN_C/2-1) of std_logic_vector(06 downto 0);
+    type ainp_t is array(0 to DSP_FOLD_STAGES_C - 1) of std_logic_vector(DSP_AINP_LEN_C - 1 downto 0);
+    type binp_t is array(0 to DSP_FOLD_STAGES_C - 1) of std_logic_vector(DSP_BINP_LEN_C - 1 downto 0);
+    type pcin_t is array(0 to DSP_FOLD_STAGES_C - 1) of std_logic_vector(DSP_CINP_LEN_C - 1 downto 0);
+    type pout_t is array(0 to DSP_FOLD_STAGES_C - 1) of std_logic_vector(DSP_POUT_LEN_C - 1 downto 0);
+    type dinp_t is array(0 to DSP_FOLD_STAGES_C - 1) of std_logic_vector(DSP_DINP_LEN_C - 1 downto 0);
+    type dsp_mode_t is array(0 to DSP_FOLD_STAGES_C - 1) of std_logic_vector(06 downto 0);
 
     -- This function rounds fix-point numbers to even(convergent rounding)
     function conv_round(a: in std_logic_vector; frc_len: in integer) return std_logic_vector;

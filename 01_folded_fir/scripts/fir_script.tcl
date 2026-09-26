@@ -41,7 +41,7 @@ if {[file exists "$module_dir/hdl"]} {
     }
 }
 
-# 5. Import Simulation Sources (Includes testbenches and golden vector packages)
+# 5. Import Simulation Sources
 if {[file exists "$module_dir/sim"]} {
     puts "--> Adding simulation sources and golden reference packages from $module_dir/sim..."
     add_files -fileset sim_1 "$module_dir/sim"
@@ -51,7 +51,13 @@ if {[file exists "$module_dir/sim"]} {
     }
 }
 
-# 6. Update Compile Order and Set Top Modules
+# 6. Import Constraint Files (.xdc)
+if {[file exists "$module_dir/constraints"]} {
+    puts "--> Adding constraints from $module_dir/constraints..."
+    add_files -fileset constrs_1 "$module_dir/constraints"
+}
+
+# 7. Update Compile Order and Set Top Modules
 update_compile_order -fileset sources_1
 update_compile_order -fileset sim_1
 
