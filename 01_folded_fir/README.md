@@ -1,4 +1,4 @@
-# Module 01: Range Detector & Folded Symmetric FIR Filter
+# Module 01: Folded Symmetric FIR Filter
 
 Hardware architecture, clock domain management, and pipeline specifications for the DSP48E1-accelerated range detection processing engine.
 
@@ -8,7 +8,7 @@ Hardware architecture, clock domain management, and pipeline specifications for 
 
 The top-level entity (`range_detector`) processes 16-bit ADC amplitude samples across two distinct clock domains. Input stream data arriving from the system clock domain is buffered into an asynchronous FIFO (`adc_fifo`) and processed inside a high-speed 250 MHz DSP clock domain (`clk_dsp`).
 
-The FIR processing core utilizes a **5x time-division folding architecture**, executing a full **50-tap filter using only 5 DSP48E1 slices** running at 250 MHz (5 cycles per input sample).
+The FIR processing core utilizes a **5x time-division folding architecture**, executing a full **50-tap filter using 5 DSP48E1 slices** running at 250 MHz (5 cycles per input sample).
 
 ```text
                                  +-------------------------------------------------------+
@@ -51,6 +51,14 @@ The FIR processing core utilizes a **5x time-division folding architecture**, ex
 | **BUFG** | 3 | 32 | 9.38% |
 | **MMCM** | 1 | 4 | 25.00% |
 
+![Final Resource Usage](docs/Final_resource_usage.png)
+
+---
+
+## Waveform Verification
+
+![FIR Filter Waveform Verification](docs/fir_filter_waveform_verification.png)
+
 ---
 
 ## Directory Structure
@@ -58,22 +66,25 @@ The FIR processing core utilizes a **5x time-division folding architecture**, ex
 ```text
 01_folded_fir/
 ├── constraints/
-│   └── range_detector.xdc        # Timing constraints (250 MHz clock definition & CDC false paths)
+│   └── range_detector.xdc                   # Timing constraints (250 MHz clock definition & CDC false paths)
+├── docs/
+│   ├── Final_resource_usage.png             # Post-implementation resource utilization table
+│   └── fir_filter_waveform_verification.png # Vivado behavioral simulation waveform capture
 ├── hdl/
-│   ├── dsp_package.vhd           # Design constants, types, coefficients, and conv_round()
-│   ├── dsp_wrapper.vhd           # Parametric DSP48E1 macro wrapper (AREG/BREG/PREG pipeline control)
-│   ├── fir_impl.vhd              # 5x time-division folded 5-DSP slice cascade engine
-│   └── range_detector.vhd        # Top-level CDC wrapper, IP instances, and thresholding
+│   ├── dsp_package.vhd                      # Design constants, types, coefficients, and conv_round()
+│   ├── dsp_wrapper.vhd                      # Parametric DSP48E1 macro wrapper (AREG/BREG/PREG pipeline control)
+│   ├── fir_impl.vhd                         # 5x time-division folded 5-DSP slice cascade engine
+│   └── range_detector.vhd                   # Top-level CDC wrapper, IP instances, and thresholding
 ├── ipcores/
-│   ├── clk_dsp/                  # Clocking wizard IP XCI for 250 MHz DSP clock generation
-│   └── adc_fifo/                 # Asynchronous CDC FIFO IP XCI
+│   ├── clk_dsp/                             # Clocking wizard IP XCI for 250 MHz DSP clock generation
+│   └── adc_fifo/                            # Asynchronous CDC FIFO IP XCI
 ├── sim/
-│   ├── rtl_golden_ref_vector.vhd # Golden reference test vector package for simulation
-│   └── tb_range_detector.vhd     # Simulation environment with differential clock stimulus
+│   ├── rtl_golden_ref_vector.vhd            # Golden reference test vector package for simulation
+│   └── tb_range_detector.vhd                # Simulation environment with differential clock stimulus
 ├── scripts/
-│   ├── fir_script.tcl            # Project generation TCL script with IP & constraint auto-discovery
-│   └── runme.bat                 # One-click Windows batch installer
-└── README.md                     # Hardware specification reference
+│   ├── fir_script.tcl                       # Project generation TCL script with IP & constraint auto-discovery
+│   └── runme.bat                            # One-click Windows batch installer
+└── README.md                                # Hardware specification reference
 ```
 
 ---
