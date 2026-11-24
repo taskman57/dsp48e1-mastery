@@ -1,7 +1,7 @@
 ----------------------------------------------------------------------
 -- tb_div_sweep.vhd
 --
--- Runs tb_div_seq_restoring_full once for every (wn, wd, frc) set in
+-- Runs tb_div_seq_full once for every (wn, wd, frc) set in
 -- the table CFGS_C below, all in one simulation. Each instance runs the
 -- six test scenarios on its own divider. At the end a table with the
 -- result of every set is printed, then SWEEP PASSED or SWEEP FAILED.
@@ -12,22 +12,20 @@
 -- Generics:
 --   NUM_TESTS_G  number of random vectors per set (stage 6)
 --   VERBOSE_G    true prints every PASS line and stage summary
---   DUT_G        divider under test (0 = div_seq_restoring), see the
---                testbench tb_div_seq_restoring_full
 ----------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
 
 entity tb_div_sweep is
     generic(
-        NUM_TESTS_G : integer := 100;
-        VERBOSE_G   : boolean := false;
-        DUT_G       : integer := 0
+        NUM_TESTS_G : integer := 1000;
+        VERBOSE_G   : boolean := false
     );
 end entity;
 
 architecture sim of tb_div_sweep is
 
+    constant DUT_G      : integer := 1;     -- module number under test in full testbench
     type cfg_t is record
         wn  : integer;
         wd  : integer;
@@ -42,15 +40,20 @@ architecture sim of tb_div_sweep is
     constant CFGS_C : cfg_array_t :=
     (
         (34, 10, 4),    -- the divider of the project
-        (60, 53, 4),    -- in the range of int64
+        (57, 51, 4),    -- in the range of int64
         (34, 10, 0),    -- no fractional bits
         (16,  6, 4),
         ( 5,  3, 3),    -- the default generics of the divider
         ( 6,  4, 0),
         ( 6,  4, 3),
         ( 4,  6, 0),    -- divisor wider than the dividend
+        (60, 62, 0),    -- divisor wider than the dividend
+        (50, 58, 6),    -- divisor wider than the dividend
+        (32, 36, 1),    -- divisor wider than the dividend
         ( 4,  5, 3),
         ( 4,  2, 6),    -- more fractional bits than divisor bits
+        (44, 32,16),    -- more fractional bits than divisor bits
+        (40, 12,20),    -- more fractional bits than divisor bits
         ( 2,  3, 1),
         ( 1,  1, 0),    -- smallest case
         ( 8,  8, 8)
@@ -72,7 +75,7 @@ begin
     -- One testbench instance per row of the table
     ----------------------------------------------------------------
     gen : for i in 0 to N_C-1 generate
-        tb : entity work.tb_div_seq_restoring_full
+        tb : entity work.tb_div_seq_full
             generic map (
                 wn          => CFGS_C(CFGS_C'low + i).wn,
                 wd          => CFGS_C(CFGS_C'low + i).wd,
@@ -119,9 +122,9 @@ begin
         end loop;
 
         if failed_sets_v = 0 then
-            report "SWEEP PASSED: all " & integer'image(N_C) & " sets" severity note;
+            report "DUT_G: " & integer'image(DUT_G) & " SWEEP PASSED: all " & integer'image(N_C) & " sets" severity note;
         else
-            report "SWEEP FAILED: " & integer'image(failed_sets_v) & " of "
+            report "DUT_G: " & integer'image(DUT_G) & " SWEEP FAILED: " & integer'image(failed_sets_v) & " of "
                  & integer'image(N_C) & " sets" severity error;
         end if;
 

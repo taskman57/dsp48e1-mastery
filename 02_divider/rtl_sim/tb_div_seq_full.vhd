@@ -1,5 +1,5 @@
 ----------------------------------------------------------------------
--- tb_div_seq_restoring_full.vhd
+-- tb_div_seq_full.vhd
 --
 -- Monolithic testbench for div_seq_restoring (generics wn, wd, frc).
 -- It merges the six testbenches of the sequential divider project, in
@@ -27,9 +27,10 @@
 --   * a timeout on the ready wait, per-stage and total summaries
 --   * stages 1 and 2 have 7 tests each (the first 3 are the originals)
 --   * VERBOSE_G = false hides the PASS lines and the stage summaries.
---   * DUT_G selects the divider under test (0 = div_seq_restoring). To
---     add another divider, copy the commented block at the DUT
---     instance, change the entity name and give it the next number.
+--   * DUT_G selects the divider under test: 0 = div_seq_restoring,
+--     1 = div_seq_nonrestoring, 2 = div_seq_nonrestoring2. To add another
+--     divider, copy one generate block, change the entity name and give
+--     it the next number. All the files must be analyzed together.
 --     The ports done_o, pass_o and fail_o let tb_div_sweep.vhd run
 --     several (wn, wd, frc) sets in one simulation. When this file is
 --     the top level, leave the ports unconnected.
@@ -39,7 +40,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use ieee.math_real.uniform;
 
-entity tb_div_seq_restoring_full is
+entity tb_div_seq_full is
     generic(
         wn          : integer := 34;
         wd          : integer := 10;
@@ -55,7 +56,7 @@ entity tb_div_seq_restoring_full is
     );
 end entity;
 
-architecture sim of tb_div_seq_restoring_full is
+architecture sim of tb_div_seq_full is
 
     ----------------------------------------------------------------
     -- Constants derived from the generics
@@ -145,6 +146,25 @@ architecture sim of tb_div_seq_restoring_full is
         variable r : unsigned(wd-1 downto 0);
     begin
         r := resize(to_unsigned(v, 32), wd);
+        if (v /= 0) and (r = 0) then
+            r := to_unsigned(1, wd);
+        end if;
+        return r;
+    end function;
+
+    -- Wide operands: num_c and den_c take a VHDL integer, so they stop
+    -- at 31 bits. For directed values wider than that, write a hex
+    -- literal and use num_u / den_u. They clip or extend to wn / wd bits
+    -- in the same way. Example: num_u(x"2A5A5A5A5A5") is a 42-bit value.
+    function num_u(v : unsigned) return unsigned is
+    begin
+        return resize(v, wn);
+    end function;
+
+    function den_u(v : unsigned) return unsigned is
+        variable r : unsigned(wd-1 downto 0);
+    begin
+        r := resize(v, wd);
         if (v /= 0) and (r = 0) then
             r := to_unsigned(1, wd);
         end if;
@@ -350,7 +370,21 @@ architecture sim of tb_div_seq_restoring_full is
         (num_c(31),  den_c(31)),
         (num_c(7),   den_c(31)),
         (num_c(0),   den_c(7)),
-        (num_c(123), den_c(1))
+        (num_c(123), den_c(1)),
+
+        -- Wide operands, above 32 bits. For narrow sets they are clipped.
+        -- 42-bit dividend over a 38-bit divisor.
+        (num_u(x"2A5A5A5A5A5"), den_u(x"2AAAAAAAAA")),
+
+        -- 2**32 over 3: the first dividend that needs more than 32 bits.
+        (num_u(x"100000000"), den_c(3)),
+
+        -- 40-bit all ones over 32-bit all ones.
+        (num_u(x"FFFFFFFFFF"), den_u(x"FFFFFFFF")),
+
+        -- 40-bit dividend with a single bit set above bit 32, over a
+        -- divisor wider than 32 bits: quotient close to 2**8.
+        (num_u(x"A5F0F0F0F0"), den_u(x"0F0F0F0F1"))
     );
 
     -- Stage 4: robustness
@@ -420,29 +454,26 @@ begin
             );
     end generate;
 
-    -- Exercise 3: after you write the entity div_seq_nonrestoring, remove
-    -- the comment marks below and run with DUT_G = 1.
-    --
-    -- dut_1 : if DUT_G = 1 generate
-    --     dut : entity work.div_seq_nonrestoring
-    --         generic map (
-    --             wn      => wn,
-    --             wd      => wd,
-    --             frc     => frc
-    --         )
-    --         port map (
-    --             clk_i   => clk_i,
-    --             rst_i   => rst_i,
-    --             ena_i   => ena_i,
-    --             num_i   => num_i,
-    --             den_i   => den_i,
-    --             busy_o  => busy_o,
-    --             rdy_o   => rdy_o,
-    --             rem_o   => rem_o,
-    --             quot_o  => quot_o,
-    --             err_o   => err_o
-    --         );
-    -- end generate;
+    dut_1 : if DUT_G = 1 generate
+        dut : entity work.div_seq_nonrestoring
+            generic map (
+                wn      => wn,
+                wd      => wd,
+                frc     => frc
+            )
+            port map (
+                clk_i   => clk_i,
+                rst_i   => rst_i,
+                ena_i   => ena_i,
+                num_i   => num_i,
+                den_i   => den_i,
+                busy_o  => busy_o,
+                rdy_o   => rdy_o,
+                rem_o   => rem_o,
+                quot_o  => quot_o,
+                err_o   => err_o
+            );
+    end generate;
 
     ----------------------------------------------------------------
     -- Clock generator (stops when the test is done)

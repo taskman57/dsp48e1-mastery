@@ -26,7 +26,6 @@ architecture Behavioral of div_seq_restoring is
 
     signal num_s        : std_logic_vector(wn-1 downto 0):=(others => '0');
     signal quot_s       : std_logic_vector(wn+frc-1 downto 0):=(others => '0');
-    signal rem_s        : unsigned(wd downto 0):=(others => '0');
     signal den_s        : unsigned(wd-1 downto 0):=(others => '0');
 
     signal stat_s       : integer range 0 to 3 := 0;
@@ -37,6 +36,7 @@ architecture Behavioral of div_seq_restoring is
 begin
 
     process(clk_i)
+        variable rem_v        : unsigned(wd downto 0):=(others => '0');
     begin
         if rising_edge(clk_i) then
             if rst_i = '1' then
@@ -49,7 +49,7 @@ begin
                 err_o       <= '0';
                 num_s       <= (others => '0');
                 den_s       <= (others => '0');
-                rem_s       <= (others => '0');
+                rem_v       := (others => '0');
                 quot_s      <= (others => '0');
                 stat_s      <= 0;
                 div_ctr_s   <= 0;
@@ -59,9 +59,9 @@ begin
                     when 0 =>
                         if ena_i = '1' and ena_s = '0' then     -- rising edge sensitive
                             quot_s      <= (others => '0');
-                            rem_s       <= (others => '0');
+                            rem_v       := (others => '0');
                             if unsigned(den_i) =0 then
-                                stat_s      <= 3;
+                                stat_s      <= 2;
                                 err_o       <= '1';
                             else
                                 num_s       <= num_i;
@@ -74,28 +74,25 @@ begin
                         end if;
                     when 1 =>       -- 2R+bit
                         if div_ctr_s < wn then
-                            rem_s   <= rem_s(rem_s'left-1 downto 0) & num_s(num_s'left);
+                            rem_v   := rem_v(rem_v'left-1 downto 0) & num_s(num_s'left);
                         else
-                            rem_s   <= rem_s(rem_s'left-1 downto 0) & '0';
+                            rem_v   := rem_v(rem_v'left-1 downto 0) & '0';
                         end if;
-                        stat_s  <= 2;
-                    when 2 =>
                         num_s       <= num_s(num_s'left-1 downto 0) & '0';
-                        if rem_s >= den_s then
+                        if rem_v >= den_s then
                             quot_s  <= quot_s(quot_s'left-1 downto 0) & '1';
-                            rem_s   <= rem_s - den_s;
+                            rem_v   := rem_v - den_s;
                         else
                             quot_s  <= quot_s(quot_s'left-1 downto 0) & '0';
                         end if;
                         if div_ctr_s < wn+frc-1 then
                             div_ctr_s   <= div_ctr_s + 1;
-                            stat_s      <= 1;
                         else
-                            stat_s      <= 3;
+                            stat_s      <= 2;
                         end if;
-                    when 3 =>
+                    when 2 =>
                         quot_o          <= quot_s;
-                        rem_o           <= std_logic_vector(rem_s(wd-1 downto 0));
+                        rem_o           <= std_logic_vector(rem_v(wd-1 downto 0));
                         rdy_o           <= '1';
                         busy_o          <= '0';
                         stat_s          <= 0;
