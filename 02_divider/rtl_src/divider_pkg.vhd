@@ -14,7 +14,7 @@ package divider_pkg is
     constant dsp_mode_c : std_logic_vector(6 downto 0) := Z_MUX_C & Y_MUX_C & X_MUX_C;
 
     -- This function rounds fix-point numbers to even(convergent rounding)
-    function conv_round(a: in std_logic_vector; frc_len: in integer) return std_logic_vector;
+    -- function conv_round(a: in std_logic_vector; frc_len: in integer) return std_logic_vector;
     function to_hex(slv : std_logic_vector) return string;
 
 end package divider_pkg;
@@ -22,8 +22,9 @@ end package divider_pkg;
 package body divider_pkg is
 
     function conv_round(a: in std_logic_vector; frc_len: in integer) return std_logic_vector is
-        constant NEG_MAX    : std_logic_vector(a'length-1 downto 0) :=(a'high => '1', others => '0');
-        constant POS_MAX    : std_logic_vector(a'length-1 downto 0) :=(a'high => '0', others => '1');
+        alias a_norm : std_logic_vector(a'length-1 downto 0) is a;
+        constant NEG_MAX : std_logic_vector(a'length-1 downto 0) := '1' & (a'length-2 downto 0 => '0');
+        constant POS_MAX : std_logic_vector(a'length-1 downto 0) := '0' & (a'length-2 downto 0 => '1');
         variable ret_val    : std_logic_vector(a'length downto 0);
         variable orig_sign  : std_logic;
         variable ovf_sign   : std_logic:='0';

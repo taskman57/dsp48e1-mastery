@@ -13,6 +13,9 @@
 *.pb
 *.dcp
 *.wcfg
+*.wdb
+*.xpr
+*.runs/
 *.cache
 *.hw
 *.ip_user_files
@@ -23,6 +26,10 @@
 **/project/
 
 # ==============================================================================
-# Simulation Data Outputs
+# Simulation Data Outputs (Vivado & GHDL)
 # ==============================================================================
 *.dat
+*.ghw
+*.cf
+*.o
+**/ghdl_unisim/
