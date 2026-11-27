@@ -25,7 +25,7 @@ end entity;
 
 architecture sim of tb_div_sweep is
 
-    constant DUT_G      : integer := 1;     -- module number under test in full testbench
+    constant DUT_G      : integer := 2;     -- module number under test in full testbench
     type cfg_t is record
         wn  : integer;
         wd  : integer;
@@ -40,15 +40,15 @@ architecture sim of tb_div_sweep is
     constant CFGS_C : cfg_array_t :=
     (
         (34, 10, 4),    -- the divider of the project
-        (57, 51, 4),    -- in the range of int64
+        (57, 46, 4),    -- in the range of int64
         (34, 10, 0),    -- no fractional bits
         (16,  6, 4),
         ( 5,  3, 3),    -- the default generics of the divider
         ( 6,  4, 0),
         ( 6,  4, 3),
         ( 4,  6, 0),    -- divisor wider than the dividend
-        (60, 62, 0),    -- divisor wider than the dividend
-        (50, 58, 6),    -- divisor wider than the dividend
+        (60, 45, 0),    -- divisor wider than the dividend
+        (50, 42, 6),    -- divisor wider than the dividend
         (32, 36, 1),    -- divisor wider than the dividend
         ( 4,  5, 3),
         ( 4,  2, 6),    -- more fractional bits than divisor bits

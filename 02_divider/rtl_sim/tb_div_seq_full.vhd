@@ -475,6 +475,27 @@ begin
             );
     end generate;
 
+    dut_2 : if DUT_G = 2 generate
+        dut : entity work.dsp_nr_step
+            generic map (
+                wn      => wn,
+                wd      => wd,
+                frc     => frc
+            )
+            port map (
+                clk_i   => clk_i,
+                rst_i   => rst_i,
+                ena_i   => ena_i,
+                num_i   => num_i,
+                den_i   => den_i,
+                busy_o  => busy_o,
+                rdy_o   => rdy_o,
+                rem_o   => rem_o,
+                quot_o  => quot_o,
+                err_o   => err_o
+            );
+    end generate;
+
     ----------------------------------------------------------------
     -- Clock generator (stops when the test is done)
     ----------------------------------------------------------------
