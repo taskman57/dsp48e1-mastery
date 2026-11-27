@@ -19,10 +19,10 @@ dsp48e1-mastery/
 │   ├── scripts/                   # Automated build & setup scripts (fir_script.tcl, runme.bat)
 │   └── README.md                  # Detailed Module 01 hardware specification
 ├── 02_divider/                    # Fixed-point dividers, sweep verification & pattern-detect rounding
-│   ├── docs/                      # Pipeline diagrams, waveforms & design notes
+│   ├── docs/                      # Resource utilization snapshots & design notes
 │   ├── m_files/                   # Octave/MATLAB reference models & test scripts
-│   ├── rtl_src/                   # Synthesizable VHDL divider & rounding RTL sources
-│   ├── rtl_sim/                   # Monolithic & parameter-sweep VHDL testbenches
+│   ├── rtl_src/                   # Fabric & DSP48E1 sequential divider RTL sources
+│   ├── rtl_sim/                   # Full, sweep & DSP step VHDL testbenches
 │   └── README.md                  # Detailed Module 02 hardware & verification specification
 └── LICENSE
 ```
@@ -39,9 +39,10 @@ dsp48e1-mastery/
 * **Robust CDC & Reset Synchronization:** Incorporates `xpm_cdc_async_rst` for reset deassertion and `xpm_cdc_single` for output level classification flags.
 
 ### 2. Fixed-Point Divider & Pattern-Detect Rounding (`02_divider`)
-* **Parameterized Restoring Division (`div_seq_restoring.vhd`):** Configurable numerator width (`wn`), divisor width (`wd`), and fractional bits (`frc`), with `busy_o`, `rdy_o`, `rem_o`, `quot_o`, and divide-by-zero `err_o` signaling.
+* **Fabric & DSP48E1 Sequential Dividers:** Includes parameterized restoring (`div_seq_restoring.vhd`) and non-restoring (`div_seq_nonrestoring.vhd`) dividers alongside DSP48E1-mapped architectures (`DSP_wrapper.vhd`, `dsp_nr_step.vhd`, `div_seq_dsp.vhd`) configured by numerator width (`wn`), divisor width (`wd`), and fractional bits (`frc`).
+* **Fabric vs. DSP Resource Comparison:** Captures Vivado resource utilization for both fabric and DSP48E1 non-restoring implementations (`wn=5, wd=3, frc=3`) under `02_divider/docs/`.
 * **Integrated Pattern-Detect Rounding:** Designed to fold pattern detection (`PATTERNDETECT` / `PATTERNBDETECT`) into the final rounding stage for fixed-point output handling without extra fabric comparator overhead.
-* **Multi-Stage & Parameter-Sweep Verification:** Includes `tb_div_seq_restoring_full.vhd` (6 verification stages) and `tb_div_sweep.vhd` across multiple `(wn, wd, frc)` configurations, paired with reference scripts in `m_files/`.
+* **Multi-Stage & Parameter-Sweep Verification:** Includes `tb_div_seq_full.vhd` (6 verification stages across `DUT_G` targets), `tb_div_sweep.vhd` across `(wn, wd, frc)` configurations, and `tb_dsp_nr_step.vhd`, paired with reference scripts in `m_files/`.
 
 ---
 
@@ -59,7 +60,7 @@ The FIR filter implementation progresses through four documented git commit mile
 ## Environment & Toolchain
 
 * **Language:** VHDL, Octave / MATLAB
-* **Synthesis & Simulation:** AMD Xilinx Vivado / ModelSim / Riviera-PRO
+* **Synthesis & Simulation:** AMD Xilinx Vivado / GHDL / ModelSim / Riviera-PRO
 * **Target Device:** Zynq-7000 FPGA Family (`xc7z020clg400-1`)
 
 ---
